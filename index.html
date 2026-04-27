@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0d0f12">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Training Log</title>
@@ -176,7 +174,12 @@
 
 <div class="app-header">
   <h1>Training Log</h1>
-  <div class="week-badge" id="weekBadge">WEEK 1</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button onclick="exportLogs()" style="font-family:var(--font-display);font-size:11px;font-weight:700;letter-spacing:0.06em;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:5px 10px;border-radius:20px;cursor:pointer">EXPORT</button>
+    <button onclick="document.getElementById('importInput').click()" style="font-family:var(--font-display);font-size:11px;font-weight:700;letter-spacing:0.06em;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:5px 10px;border-radius:20px;cursor:pointer">IMPORT</button>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importLogs(event)">
+    <div class="week-badge" id="weekBadge">WEEK 1</div>
+  </div>
 </div>
 
 <div class="week-nav" id="weekNav"></div>
@@ -591,10 +594,44 @@ function skipTimer() {
   document.getElementById('timerOverlay').classList.remove('visible');
 }
 
-render();
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/workout/sw.js');
+// ── Export / Import ───────────────────────────────────────────
+function exportLogs() {
+  const date = new Date().toISOString().slice(0,10);
+  const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `training-log-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
+
+function importLogs(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      // Basic validation — check it looks like our log structure
+      if (!Array.isArray(imported) || imported.length !== WEEKS) {
+        alert('Invalid backup file — make sure you are importing a Training Log export.');
+        return;
+      }
+      logs = imported;
+      save();
+      render();
+      alert('Logs imported successfully!');
+    } catch {
+      alert('Could not read file. Make sure it is a valid Training Log backup.');
+    }
+  };
+  reader.readAsText(file);
+  // Reset input so same file can be re-imported if needed
+  event.target.value = '';
+}
+
+render();
 </script>
 </body>
 </html>
